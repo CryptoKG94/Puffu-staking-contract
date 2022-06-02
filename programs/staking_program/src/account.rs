@@ -6,7 +6,6 @@ use crate::error::*;
 #[account]
 #[derive(Default)]
 pub struct GlobalPool {
-    pub lottery_nft_count: u64, // 8
     pub fixed_nft_count: u64   // 8
 }
 
@@ -17,44 +16,6 @@ pub struct Item {
     pub owner: Pubkey,      // 32
     pub nft_addr: Pubkey,   // 32
     pub stake_time: i64     // 8
-}
-
-#[account(zero_copy)]
-pub struct GlobalLotteryPool {
-    // 360_016
-    pub lottery_items: [Item; NFT_TOTAL_COUNT], // 72 * 5000 = 360_000
-    pub item_count: u64                         // 8
-}
-impl Default for GlobalLotteryPool {
-    #[inline]
-    fn default() -> GlobalLotteryPool {
-        GlobalLotteryPool {
-            lottery_items: [
-                Item {
-                    ..Default::default()
-                }; NFT_TOTAL_COUNT
-            ],
-            item_count: 0
-        }
-    }
-}
-impl GlobalLotteryPool {
-    pub fn add_nft(&mut self, item: Item) {
-        self.lottery_items[self.item_count as usize] = item;
-        self.item_count += 1;
-    }
-    pub fn remove_nft(&mut self, owner: Pubkey, nft_mint: Pubkey, index: u64) -> Result<()> {
-        require!(self.item_count > index, StakingError::IndexOverflow);
-        require!(self.lottery_items[index as usize].nft_addr.eq(&nft_mint), StakingError::InvalidNFTAddress);
-        require!(self.lottery_items[index as usize].owner.eq(&owner), StakingError::InvalidOwner);
-        // remove nft
-        if index != self.item_count - 1 {
-            let last_idx = self.item_count - 1;
-            self.lottery_items[index as usize] = self.lottery_items[last_idx as usize];
-        }
-        self.item_count -= 1;
-        Ok(())
-    }
 }
 
 #[zero_copy]
