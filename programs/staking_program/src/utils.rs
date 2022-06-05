@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use solana_program::{
-    program::{invoke_signed}
-};
+use solana_program::program::invoke_signed;
+
+use crate::error::StakingError;
 
 // transfer sol
 pub fn sol_transfer_with_signer<'a>(
@@ -10,7 +10,8 @@ pub fn sol_transfer_with_signer<'a>(
     system_program: AccountInfo<'a>,
     signers: &[&[&[u8]]; 1],
     amount: u64,
-) -> Result<(), ProgramError> {
+) -> Result<()> {
     let ix = solana_program::system_instruction::transfer(source.key, destination.key, amount);
-    invoke_signed(&ix, &[source, destination, system_program], signers)
+    invoke_signed(&ix, &[source, destination, system_program], signers)?;
+    Ok(())
 }
