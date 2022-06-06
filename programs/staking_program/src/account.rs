@@ -11,7 +11,7 @@ pub const POOL_CONFIG_SIZE: usize = 8 + // discriminator
     32 + // reward_vault
     8 + // last_update_time
     4 + // staked_nft
-    4 * CLASS_TYPES; // reward_policy_by_class
+    2 * CLASS_TYPES; // reward_policy_by_class
 
 #[account]
 #[derive(Default)]
@@ -33,7 +33,7 @@ pub struct PoolConfig {
     /// Tokens Staked
     pub staked_nft: u32,
     /// Reward amount per day according to class type
-    pub reward_policy_by_class: [u32; CLASS_TYPES],
+    pub reward_policy_by_class: [u16; CLASS_TYPES],
 }
 
 #[account]
@@ -47,13 +47,24 @@ pub struct StakeInfo {
 }
 
 impl StakeInfo {
-    pub fn update_reward(&mut self, now: i64) -> Result<u64> {
+    pub fn update_reward(&mut self, now: i64, reward_per_day: u16) -> Result<u64> {
         let mut reward: u64 = 0;
         let mut last_reward_time = self.last_update_time;
         if last_reward_time < self.stake_time {
             last_reward_time = self.stake_time;
         }
-        reward = (((now - last_reward_time) / DAY) as u64) * REWARD_PER_DAY;
+
+        let unit_amount = (10 as u16).pow(DECIMAL);
+        reward = (unit_amount as u128)
+            .checked_mul((now as u128).checked_sub(last_reward_time as u128).unwrap())
+            .unwrap()
+            .checked_mul(reward_per_day as u128)
+            .unwrap()
+            .checked_div(REWARD_DENOMIATOR as u128)
+            .unwrap()
+            .checked_div(DAY as u128)
+            .unwrap() as u64;
+        // reward = (((now - last_reward_time) / DAY) as u64) * reward_per_day;
         self.last_update_time = now;
 
         Ok(reward)

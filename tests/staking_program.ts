@@ -7,8 +7,8 @@ import { assert } from "chai";
 import bs58 from 'bs58';
 
 const PublicKey = anchor.web3.PublicKey;
-// const BN = anchor.BN;
 
+const SWRD_DECIMAL = 6;
 const GLOBAL_AUTHORITY_SEED = "global-authority";
 const RS_PREFIX = "rs-nft-staking";
 const RS_STAKEINFO_SEED = "rs-stake-info";
@@ -35,8 +35,20 @@ describe('staking_program', () => {
   let user_reward_account = null;
   let funder_vault_account = null;
 
-  let initial_reward_vault_amount = 1000;
-  let class_types = [1, 2.5, 3, 4, 5.5, 6, 7, 8, 9];
+  let initial_reward_vault_amount = 1_000_000_000;
+  let deposit_amount = 100_000_000;
+  let class_types = [
+    10,
+    25,
+    30,
+    40,
+    55,
+    60,
+    70,
+    80,
+    90,
+  ];
+  let lock_day = 0;
 
   it('Is initialized!', async () => {
     // Add your test here.
@@ -78,7 +90,7 @@ describe('staking_program', () => {
       user,
       superOwner.publicKey,
       null,
-      0,
+      SWRD_DECIMAL,
       TOKEN_PROGRAM_ID
     );
 
@@ -118,7 +130,7 @@ describe('staking_program', () => {
 
     console.log("vault_key =", vault_pda.toBase58());
 
-    const res = await program.methods.initializeStakingPool(class_types).accounts({
+    const res = await program.methods.initializeStakingPool(class_types, lock_day).accounts({
       admin: superOwner.publicKey,
       poolAccount: pool_account_pda,
       rewardMint: reward_mint.publicKey,
@@ -126,9 +138,17 @@ describe('staking_program', () => {
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
       rent: SYSVAR_RENT_PUBKEY
-    })
-      .signers([superOwner])
-      .rpc();
+    }).signers([superOwner]).rpc();
+
+    let _pool_config = await program.account.poolConfig.fetch(pool_account_pda);
+
+    console.log("superOwner from contract = ", _pool_config.admin.toBase58());
+    assert.ok(_pool_config.admin.toBase58() == superOwner.publicKey.toBase58());
+    assert.ok(_pool_config.rewardMint.equals(reward_mint.publicKey));
+    assert.ok(_pool_config.rewardVault.equals(vault_pda));
+    console.log("second class id: ", _pool_config.rewardPolicyByClass[1]);
+    assert.ok(_pool_config.rewardPolicyByClass[1] == class_types[1]);
+    assert.ok(_pool_config.stakedNft == 0);
 
     console.log("Your transaction signature", res);
   });
@@ -142,7 +162,6 @@ describe('staking_program', () => {
       program.programId
     );
 
-    let deposit_amount = 100;
     const ix = await program.methods.depositSwrd(
       new anchor.BN(deposit_amount)
     ).accounts({
@@ -152,10 +171,11 @@ describe('staking_program', () => {
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([superOwner]).rpc();
 
-    console.log()
-
     let _vault_account = await reward_mint.getAccountInfo(vault_pda);
     assert.ok(Number(_vault_account.amount) == deposit_amount);
+    let _funder_account = await reward_mint.getAccountInfo(funder_vault_account);
+    console.log("deposit amount: ", Number(_vault_account.amount));
+    console.log("remain amount: ", Number(_funder_account.amount));
     console.log("Your transaction signature", ix);
   })
 
@@ -181,7 +201,7 @@ describe('staking_program', () => {
       program.programId
     );
 
-    const ix = await program.methods.stakeNft().accounts({
+    const ix = await program.methods.stakeNft(2).accounts({
       owner: user.publicKey,
       poolAccount: pool_account_pda,
       nftMint: nft_token_mint.publicKey,
@@ -195,6 +215,59 @@ describe('staking_program', () => {
       .signers([user])
       .rpc();
     console.log("Your transaction signature", ix);
+
+    let _stakeinfo = await program.account.stakeInfo.fetch(stake_info_pda);
+    assert.ok(_stakeinfo.owner.equals(user.publicKey));
+    assert.ok(_stakeinfo.nftAddr.equals(nft_token_mint.publicKey));
+    console.log("class_id: ", _stakeinfo.classId);
+    console.log("stake_time : ", _stakeinfo.stakeTime);
+
+    let _destNftTokenAccount = await nft_token_mint.getAccountInfo(staked_nft_pda);
+    assert.ok(Number(_destNftTokenAccount.amount) == 1);
+
+    let _user_nft_token_account = await nft_token_mint.getAccountInfo(user_nft_token_account);
+    assert.ok(Number(_user_nft_token_account.amount) == 0);
+
+  })
+
+  it("Claim reward", async () => {
+    const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(RS_PREFIX)],
+      program.programId
+    );
+
+    const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_VAULT_SEED),
+        reward_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+
+    const [stake_info_pda, stake_info_bump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_STAKEINFO_SEED),
+        nft_token_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+
+    const ix = await program.methods.claimReward().accounts({
+      owner: user.publicKey,
+      poolAccount: pool_account_pda,
+      nftMint: nft_token_mint.publicKey,
+      nftStakeInfoAccount: stake_info_pda,
+      rewardToAccount: user_reward_account,
+      rewardVault: vault_pda,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+      .signers([user])
+      .rpc();
+    console.log("Your transaction signature", ix);
+
+    let _user_reward_account = await reward_mint.getAccountInfo(user_reward_account);
+    console.log("reward amount: ", Number(_user_reward_account.amount));
 
   })
 
@@ -245,51 +318,41 @@ describe('staking_program', () => {
       .rpc();
     console.log("Your transaction signature", ix);
 
+    let _user_nft_token_account = await nft_token_mint.getAccountInfo(user_nft_token_account);
+    assert.ok(Number(_user_nft_token_account.amount) == 1);
+    let _user_reward_account = await reward_mint.getAccountInfo(user_reward_account);
+    console.log("reward amount: ", Number(_user_reward_account.amount));
+
   })
 
-  // it("Claim Reward", async () => {
+  it("withdraw reward", async () => {
+    const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_VAULT_SEED),
+        reward_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   const [globalAuthority, bump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from(GLOBAL_AUTHORITY_SEED)],
-  //     program.programId
-  //   );
+    const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(RS_PREFIX)],
+      program.programId
+    );
 
-  //   console.log("globalAuthority =", globalAuthority.toBase58());
+    const ix = await program.methods.withdrawSwrd().accounts({
+      admin: superOwner.publicKey,
+      poolAccount: pool_account_pda,
+      rewardVault: vault_pda,
+      funderAccount: funder_vault_account,
+      rewardMint: reward_mint.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([superOwner]).rpc();
 
-  //   const [poolWalletKey, walletBump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from(POOL_WALLET_SEED)],
-  //     program.programId
-  //   );
-
-  //   console.log("poolWalletKey =", poolWalletKey.toBase58());
-
-  //   let userFixedPoolKey = await PublicKey.createWithSeed(
-  //     user.publicKey,
-  //     "user-fixed-pool",
-  //     program.programId,
-  //   );
-
-  //   const [staked_nft_address, nft_bump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from("staked-nft"), nft_token_mint.publicKey.toBuffer()],
-  //     program.programId
-  //   );
-
-  //   const tx = await program.rpc.claimReward(
-  //     bump, nft_bump, walletBump, {
-  //     accounts: {
-  //       owner: user.publicKey,
-  //       userFixedPool: userFixedPoolKey,
-  //       globalAuthority,
-  //       poolWallet: poolWalletKey,
-  //       systemProgram: SystemProgram.programId,
-  //     },
-  //     signers: [user]
-  //   }
-  //   );
-
-  //   console.log("Your transaction signature", tx);
-
-  //   let userFixedPool = await program.account.userPool.fetch(userFixedPoolKey);
-  //   //console.log("userFixedPool =", userFixedPool);
-  // })
+    let _vault_account = await reward_mint.getAccountInfo(vault_pda);
+    assert.ok(Number(_vault_account.amount) == 0);
+    let _funder_account = await reward_mint.getAccountInfo(funder_vault_account);
+    console.log("deposit amount: ", Number(_vault_account.amount));
+    console.log("remain amount: ", Number(_funder_account.amount));
+    console.log("Your transaction signature", ix);
+  })
 });

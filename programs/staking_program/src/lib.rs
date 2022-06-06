@@ -21,7 +21,8 @@ pub mod rs_staking_program {
 
     pub fn initialize_staking_pool(
         ctx: Context<InitializeStakingPool>,
-        reward_policy_by_class: [u32; CLASS_TYPES],
+        reward_policy_by_class: [u16; CLASS_TYPES],
+        lock_day: u32,
     ) -> Result<()> {
         msg!("initializing");
 
@@ -37,11 +38,12 @@ pub mod rs_staking_program {
         pool_account.reward_vault = ctx.accounts.reward_vault.key();
         pool_account.last_update_time = Clock::get()?.unix_timestamp;
         pool_account.staked_nft = 0;
+        pool_account.lock_day = lock_day;
         pool_account.reward_policy_by_class = reward_policy_by_class;
         Ok(())
     }
 
-    pub fn stake_nft(ctx: Context<StakeNft>) -> Result<()> {
+    pub fn stake_nft(ctx: Context<StakeNft>, class_id: u32) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
 
         // set stake info
@@ -50,6 +52,7 @@ pub mod rs_staking_program {
         staking_info.owner = ctx.accounts.owner.key();
         staking_info.stake_time = timestamp;
         staking_info.last_update_time = timestamp;
+        staking_info.class_id = class_id;
 
         // set global info
         ctx.accounts.pool_account.staked_nft += 1;
@@ -71,18 +74,23 @@ pub mod rs_staking_program {
         let timestamp = Clock::get()?.unix_timestamp;
         let staking_info = &mut ctx.accounts.nft_stake_info_account;
 
+        let pool_account = &mut ctx.accounts.pool_account;
+        let reward_per_day = pool_account.reward_policy_by_class[staking_info.class_id as usize];
         // When withdraw nft, calculate and send reward SWRD
-        let mut reward: u64 = staking_info.update_reward(timestamp)?;
+        let mut reward: u64 = staking_info.update_reward(timestamp, reward_per_day)?;
 
         let vault_balance = ctx.accounts.reward_vault.amount;
         if vault_balance < reward {
             reward = vault_balance;
         }
 
-        let lock_day = ctx.accounts.pool_account.lock_day;
         let unlock_time = staking_info
             .stake_time
-            .checked_add((lock_day as i64).checked_mul(86400 as i64).unwrap())
+            .checked_add(
+                (pool_account.lock_day as i64)
+                    .checked_mul(86400 as i64)
+                    .unwrap(),
+            )
             .unwrap();
 
         if unlock_time > timestamp {
@@ -125,12 +133,15 @@ pub mod rs_staking_program {
     }
 
     #[access_control(user(&ctx.accounts.nft_stake_info_account, &ctx.accounts.owner))]
-    pub fn claim_reward(ctx: Context<ClaimReward>, global_bump: u8) -> Result<()> {
+    pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
         let staking_info = &mut ctx.accounts.nft_stake_info_account;
 
         // calulate reward of this nft
-        let mut reward: u64 = staking_info.update_reward(timestamp)?;
+        let pool_account = &mut ctx.accounts.pool_account;
+        let reward_per_day = pool_account.reward_policy_by_class[staking_info.class_id as usize];
+        // When withdraw nft, calculate and send reward SWRD
+        let mut reward: u64 = staking_info.update_reward(timestamp, reward_per_day)?;
 
         let vault_balance = ctx.accounts.reward_vault.amount;
 
@@ -139,10 +150,13 @@ pub mod rs_staking_program {
         }
 
         // Transfer rewards from the pool reward vaults to user reward vaults.
-        let pool_seeds = &[RS_PREFIX.as_bytes(), &[global_bump]];
+        let (_pool_account_seed, _bump) =
+            Pubkey::find_program_address(&[&(RS_PREFIX.as_bytes())], ctx.program_id);
+        // let bump = ctx.bumps.get(RS_PREFIX).unwrap();
+        let pool_seeds = &[RS_PREFIX.as_bytes(), &[_bump]];
         let signer = &[&pool_seeds[..]];
 
-        let token_program = ctx.accounts.token_program.clone();
+        let token_program = ctx.accounts.token_program.to_account_info().clone();
         let token_accounts = anchor_spl::token::Transfer {
             from: ctx.accounts.reward_vault.to_account_info().clone(),
             to: ctx.accounts.reward_to_account.to_account_info().clone(),
@@ -174,11 +188,15 @@ pub mod rs_staking_program {
         Ok(())
     }
 
-    pub fn withdraw_swrd(ctx: Context<WithdrawSwrd>, global_bump: u8) -> Result<()> {
+    pub fn withdraw_swrd(ctx: Context<WithdrawSwrd>) -> Result<()> {
         let vault_amount = ctx.accounts.reward_vault.amount;
 
         if vault_amount > 0 {
-            let pool_seeds = &[RS_PREFIX.as_bytes(), &[global_bump]];
+            let (_pool_account_seed, _bump) =
+                Pubkey::find_program_address(&[&(RS_PREFIX.as_bytes())], ctx.program_id);
+
+            // let _bump = ctx.bumps.get(RS_PREFIX).unwrap();
+            let pool_seeds = &[RS_PREFIX.as_bytes(), &[_bump]];
             let signer = &[&pool_seeds[..]];
 
             let token_accounts = anchor_spl::token::Transfer {
@@ -330,7 +348,6 @@ pub struct WithdrawNft<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(global_bump: u8, stake_info_bump: u8, staked_nft_bump: u8)]
 pub struct ClaimReward<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -342,8 +359,9 @@ pub struct ClaimReward<'info> {
     pub pool_account: Account<'info, PoolConfig>,
 
     #[account(
-        seeds = [RS_STAKEINFO_SEED.as_ref(), nft_mint.key.as_ref()],
-        bump = stake_info_bump,
+        mut,
+        seeds = [RS_STAKEINFO_SEED.as_ref(), nft_mint.key().as_ref()],
+        bump,
     )]
     pub nft_stake_info_account: Account<'info, StakeInfo>,
 
@@ -354,20 +372,10 @@ pub struct ClaimReward<'info> {
     #[account(mut)]
     reward_to_account: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK: "nft_mint" is unsafe, but is not documented.
-    pub nft_mint: AccountInfo<'info>,
+    pub nft_mint: Account<'info, Mint>,
 
     // The Token Program
-    #[account(address = spl_token::id())]
-    /// CHECK: this is unsafe.
-    token_program: AccountInfo<'info>,
-    // #[account(
-    //     mut,
-    //     seeds = [POOL_WALLET_SEED.as_ref()],
-    //     bump = pool_wallet_bump,
-    // )]
-    // /// CHECK: "pool_wallet" is unsafe, but is not documented.
-    // pub pool_wallet: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
@@ -384,17 +392,13 @@ pub struct DepositSwrd<'info> {
     funder_account: Account<'info, TokenAccount>,
 
     // The Token Program
-    #[account(address = spl_token::id())]
-    /// CHECK: this is unsafe.
-    token_program: AccountInfo<'info>,
+    token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
-#[instruction(global_bump: u8, stake_info_bump: u8, vault_bump: u8)]
 pub struct WithdrawSwrd<'info> {
-    #[account(mut, signer)]
-    /// CHECK: this is unsafe.
-    admin: AccountInfo<'info>,
+    #[account(mut)]
+    admin: Signer<'info>,
     #[account(mut,
         constraint = pool_account.is_initialized == true,
         constraint = pool_account.paused == false,
@@ -403,8 +407,8 @@ pub struct WithdrawSwrd<'info> {
 
     #[account(
         mut,
-        seeds = [ RS_VAULT_SEED.as_bytes(), pool_account.key().as_ref(), admin.key.as_ref(), reward_mint.key.as_ref() ],
-        bump = vault_bump,
+        seeds = [ RS_VAULT_SEED.as_bytes(), reward_mint.key().as_ref() ],
+        bump,
     )]
     pub reward_vault: Box<Account<'info, TokenAccount>>,
 
@@ -413,13 +417,10 @@ pub struct WithdrawSwrd<'info> {
     pub funder_account: Account<'info, TokenAccount>,
 
     // reward mint
-    /// CHECK: this is unsafe.
-    reward_mint: AccountInfo<'info>,
+    reward_mint: Account<'info, Mint>,
 
     // The Token Program
-    #[account(address = spl_token::id())]
-    /// CHECK: this is unsafe.
-    token_program: AccountInfo<'info>,
+    token_program: Program<'info, Token>,
 }
 
 // Access control modifiers
