@@ -1,24 +1,22 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, Mint, Token, TokenAccount, Transfer},
+    token::{self, Token, TokenAccount, Transfer},
 };
 use std::mem::size_of;
 
 pub mod account;
 pub mod constants;
 pub mod error;
-pub mod utils;
 
 use account::*;
 use constants::*;
 use error::*;
-use utils::*;
 
-declare_id!("FbaMJWS14yAPH68LwFAHxaBSukgBHnAY9VaEfhFxWerb");
+declare_id!("24HE7xAAaPKhmvFg71rdDQC4oXCq78j1tgrSJYNhkPP7");
 
 #[program]
-pub mod staking_program {
+pub mod rs_staking_program {
     use super::*;
 
     pub fn initialize_staking_pool(
@@ -43,15 +41,15 @@ pub mod staking_program {
         Ok(())
     }
 
-    pub fn stake_nft(ctx: Context<StakeNft>, global_bump: u8, staked_nft_bump: u8) -> Result<()> {
+    pub fn stake_nft(ctx: Context<StakeNft>) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
 
         // set stake info
-        let stakingInfo = &mut ctx.accounts.nft_stake_info_account;
-        stakingInfo.nft_addr = ctx.accounts.nft_mint.key();
-        stakingInfo.owner = ctx.accounts.owner.key();
-        stakingInfo.stake_time = timestamp;
-        stakingInfo.last_update_time = timestamp;
+        let staking_info = &mut ctx.accounts.nft_stake_info_account;
+        staking_info.nft_addr = ctx.accounts.nft_mint.key();
+        staking_info.owner = ctx.accounts.owner.key();
+        staking_info.stake_time = timestamp;
+        staking_info.last_update_time = timestamp;
 
         // set global info
         ctx.accounts.pool_account.staked_nft += 1;
@@ -72,13 +70,14 @@ pub mod staking_program {
     pub fn withdraw_nft(
         ctx: Context<WithdrawNft>,
         global_bump: u8,
-        stake_info_bump: u8,
+        _stake_info_bump: u8,
+        _staked_nft_bump: u8,
     ) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
-        let stakingInfo = &mut ctx.accounts.nft_stake_info_account;
+        let staking_info = &mut ctx.accounts.nft_stake_info_account;
 
         // When withdraw nft, calculate and send reward SWRD
-        let mut reward: u64 = stakingInfo.update_reward(timestamp)?;
+        let mut reward: u64 = staking_info.update_reward(timestamp)?;
 
         let vault_balance = ctx.accounts.reward_vault.amount;
         if vault_balance < reward {
@@ -86,7 +85,7 @@ pub mod staking_program {
         }
 
         let lock_day = ctx.accounts.pool_account.lock_day;
-        let unlock_time = stakingInfo
+        let unlock_time = staking_info
             .stake_time
             .checked_add((lock_day as i64).checked_mul(86400 as i64).unwrap())
             .unwrap();
@@ -131,10 +130,10 @@ pub mod staking_program {
     #[access_control(user(&ctx.accounts.nft_stake_info_account, &ctx.accounts.owner))]
     pub fn claim_reward(ctx: Context<ClaimReward>, global_bump: u8) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
-        let stakingInfo = &mut ctx.accounts.nft_stake_info_account;
+        let staking_info = &mut ctx.accounts.nft_stake_info_account;
 
         // calulate reward of this nft
-        let mut reward: u64 = stakingInfo.update_reward(timestamp)?;
+        let mut reward: u64 = staking_info.update_reward(timestamp)?;
 
         let vault_balance = ctx.accounts.reward_vault.amount;
 
@@ -204,14 +203,9 @@ pub mod staking_program {
 
 #[derive(Accounts)]
 pub struct InitializeStakingPool<'info> {
-    // #[account(zero)]
-    // pub pool_account: AccountLoader<'info, UserPool>,
-
-    // #[account(mut)]
-    // pub authority: Signer<'info>,
-
-    // The pool authority
+    // The pool owner
     #[account(mut, signer)]
+    /// CHECK: "admin" is unsafe.
     admin: AccountInfo<'info>,
 
     #[account(
@@ -224,6 +218,7 @@ pub struct InitializeStakingPool<'info> {
     pub pool_account: Account<'info, PoolConfig>,
 
     // reward mint
+    /// CHECK: this is unsafe.
     reward_mint: AccountInfo<'info>,
 
     // reward vault that holds the reward mint for distribution
@@ -369,6 +364,7 @@ pub struct ClaimReward<'info> {
 
     // The Token Program
     #[account(address = spl_token::id())]
+    /// CHECK: this is unsafe.
     token_program: AccountInfo<'info>,
     // #[account(
     //     mut,
@@ -383,6 +379,7 @@ pub struct ClaimReward<'info> {
 #[derive(Accounts)]
 pub struct DepositSwrd<'info> {
     #[account(mut, signer)]
+    /// CHECK: this is unsafe.
     funder: AccountInfo<'info>,
     #[account(mut)]
     reward_vault: Box<Account<'info, TokenAccount>>,
@@ -393,6 +390,7 @@ pub struct DepositSwrd<'info> {
 
     // The Token Program
     #[account(address = spl_token::id())]
+    /// CHECK: this is unsafe.
     token_program: AccountInfo<'info>,
 }
 
@@ -400,7 +398,8 @@ pub struct DepositSwrd<'info> {
 #[instruction(global_bump: u8, stake_info_bump: u8, vault_bump: u8)]
 pub struct WithdrawSwrd<'info> {
     #[account(mut, signer)]
-    authority: AccountInfo<'info>,
+    /// CHECK: this is unsafe.
+    admin: AccountInfo<'info>,
     #[account(mut,
         constraint = pool_account.is_initialized == true,
         constraint = pool_account.paused == false,
@@ -409,7 +408,7 @@ pub struct WithdrawSwrd<'info> {
 
     #[account(
         mut,
-        seeds = [ RS_VAULT_SEED.as_bytes(), pool_account.key().as_ref(), authority.key.as_ref(), reward_mint.key.as_ref() ],
+        seeds = [ RS_VAULT_SEED.as_bytes(), pool_account.key().as_ref(), admin.key.as_ref(), reward_mint.key.as_ref() ],
         bump = vault_bump,
     )]
     pub reward_vault: Box<Account<'info, TokenAccount>>,
@@ -419,10 +418,12 @@ pub struct WithdrawSwrd<'info> {
     pub funder_account: Account<'info, TokenAccount>,
 
     // reward mint
+    /// CHECK: this is unsafe.
     reward_mint: AccountInfo<'info>,
 
     // The Token Program
     #[account(address = spl_token::id())]
+    /// CHECK: this is unsafe.
     token_program: AccountInfo<'info>,
 }
 
