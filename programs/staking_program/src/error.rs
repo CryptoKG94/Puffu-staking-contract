@@ -2,6 +2,8 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum StakingError {
+    #[msg("Not Allowed Authority")]
+    NotAllowedAuthority,
     #[msg("Invalid User Address")]
     InvalidUserAddress,
     #[msg("Invalid pool number")]

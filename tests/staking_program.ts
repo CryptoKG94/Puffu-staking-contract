@@ -154,6 +154,12 @@ describe('staking_program', () => {
   });
 
   it("deposit reward", async () => {
+    // create PDAs
+    const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(RS_PREFIX)],
+      program.programId
+    );
+
     const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
       [
         Buffer.from(RS_VAULT_SEED),
@@ -168,6 +174,8 @@ describe('staking_program', () => {
       funder: superOwner.publicKey,
       rewardVault: vault_pda,
       funderAccount: funder_vault_account,
+      poolAccount: pool_account_pda,
+      rewardMint: reward_mint.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([superOwner]).rpc();
 
@@ -255,6 +263,7 @@ describe('staking_program', () => {
     const ix = await program.methods.claimReward().accounts({
       owner: user.publicKey,
       poolAccount: pool_account_pda,
+      rewardMint: reward_mint.publicKey,
       nftMint: nft_token_mint.publicKey,
       nftStakeInfoAccount: stake_info_pda,
       rewardToAccount: user_reward_account,
@@ -310,6 +319,7 @@ describe('staking_program', () => {
       nftStakeInfoAccount: stake_info_pda,
       rewardToAccount: user_reward_account,
       rewardVault: vault_pda,
+      rewardMint: reward_mint.publicKey,
       rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,

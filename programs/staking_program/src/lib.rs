@@ -13,12 +13,13 @@ use account::*;
 use constants::*;
 use error::*;
 
-declare_id!("24HE7xAAaPKhmvFg71rdDQC4oXCq78j1tgrSJYNhkPP7");
+declare_id!("6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo");
 
 #[program]
 pub mod rs_staking_program {
     use super::*;
 
+    #[access_control(ctx.accounts.validate())]
     pub fn initialize_staking_pool(
         ctx: Context<InitializeStakingPool>,
         reward_policy_by_class: [u16; CLASS_TYPES],
@@ -28,9 +29,6 @@ pub mod rs_staking_program {
 
         let pool_account = &mut ctx.accounts.pool_account;
 
-        if pool_account.is_initialized {
-            return Err(ProgramError::AccountAlreadyInitialized)?;
-        }
         pool_account.is_initialized = true;
         pool_account.admin = *ctx.accounts.admin.key;
         pool_account.paused = false; // initial status is paused
@@ -214,13 +212,38 @@ pub mod rs_staking_program {
         }
         Ok(())
     }
+
+    pub fn change_pool_setting(
+        ctx: Context<ChangePoolSetting>,
+        reward_policy_by_class: [u16; CLASS_TYPES],
+        lock_day: u32,
+        paused: bool,
+    ) -> Result<()> {
+        let pool_account = &mut ctx.accounts.pool_account;
+        pool_account.paused = paused; // initial status is paused
+        pool_account.last_update_time = Clock::get()?.unix_timestamp;
+        pool_account.lock_day = lock_day;
+        pool_account.reward_policy_by_class = reward_policy_by_class;
+        Ok(())
+    }
+
+    pub fn change_reward_mint(ctx: Context<ChangeRewardMint>, reward_mint: Pubkey) -> Result<()> {
+        let pool_account = &mut ctx.accounts.pool_account;
+        pool_account.reward_mint = reward_mint;
+        Ok(())
+    }
+
+    pub fn transfer_ownership(ctx: Context<TransferOwnership>, new_admin: Pubkey) -> Result<()> {
+        let pool_account = &mut ctx.accounts.pool_account;
+        pool_account.admin = new_admin;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
 pub struct InitializeStakingPool<'info> {
     // The pool owner
     #[account(mut)]
-    /// CHECK: "admin" is unsafe.
     pub admin: Signer<'info>,
 
     #[account(
@@ -233,7 +256,6 @@ pub struct InitializeStakingPool<'info> {
     pub pool_account: Account<'info, PoolConfig>,
 
     // reward mint
-    /// CHECK: this is unsafe.
     pub reward_mint: Account<'info, Mint>,
 
     // reward vault that holds the reward mint for distribution
@@ -264,7 +286,10 @@ pub struct StakeNft<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    #[account(mut,
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
         constraint = pool_account.is_initialized == true,
         constraint = pool_account.paused == false,
     )]
@@ -305,14 +330,24 @@ pub struct WithdrawNft<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    #[account(mut,
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
         constraint = pool_account.is_initialized == true,
         constraint = pool_account.paused == false,
     )]
     pub pool_account: Account<'info, PoolConfig>,
 
-    #[account(mut)]
-    reward_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        token::mint = reward_mint,
+        token::authority = pool_account,
+    )]
+    pub reward_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(address = pool_account.reward_mint)]
+    pub reward_mint: Account<'info, Mint>,
 
     #[account(
         mut,
@@ -352,7 +387,10 @@ pub struct ClaimReward<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    #[account(mut,
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
         constraint = pool_account.is_initialized == true,
         constraint = pool_account.paused == false,
     )]
@@ -365,8 +403,15 @@ pub struct ClaimReward<'info> {
     )]
     pub nft_stake_info_account: Account<'info, StakeInfo>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        token::mint = reward_mint,
+        token::authority = pool_account,
+    )]
     reward_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(address = pool_account.reward_mint)]
+    pub reward_mint: Account<'info, Mint>,
 
     // send reward to user reward vault
     #[account(mut)]
@@ -382,14 +427,29 @@ pub struct ClaimReward<'info> {
 #[derive(Accounts)]
 pub struct DepositSwrd<'info> {
     #[account(mut)]
-    /// CHECK: this is unsafe.
     funder: Signer<'info>,
-    #[account(mut)]
+
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
+        constraint = pool_account.is_initialized == true,
+    )]
+    pub pool_account: Account<'info, PoolConfig>,
+
+    #[account(
+        mut,
+        token::mint = reward_mint,
+        token::authority = pool_account,
+    )]
     reward_vault: Box<Account<'info, TokenAccount>>,
 
     // funder account
     #[account(mut)]
     funder_account: Account<'info, TokenAccount>,
+
+    #[account(address = pool_account.reward_mint)]
+    pub reward_mint: Box<Account<'info, Mint>>,
 
     // The Token Program
     token_program: Program<'info, Token>,
@@ -399,9 +459,11 @@ pub struct DepositSwrd<'info> {
 pub struct WithdrawSwrd<'info> {
     #[account(mut)]
     admin: Signer<'info>,
-    #[account(mut,
-        constraint = pool_account.is_initialized == true,
-        constraint = pool_account.paused == false,
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
+        has_one = admin,
     )]
     pub pool_account: Account<'info, PoolConfig>,
 
@@ -409,6 +471,8 @@ pub struct WithdrawSwrd<'info> {
         mut,
         seeds = [ RS_VAULT_SEED.as_bytes(), reward_mint.key().as_ref() ],
         bump,
+        token::mint = reward_mint,
+        token::authority = pool_account,
     )]
     pub reward_vault: Box<Account<'info, TokenAccount>>,
 
@@ -417,14 +481,71 @@ pub struct WithdrawSwrd<'info> {
     pub funder_account: Account<'info, TokenAccount>,
 
     // reward mint
+    #[account(address = pool_account.reward_mint)]
     reward_mint: Account<'info, Mint>,
 
     // The Token Program
     token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct ChangePoolSetting<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
+        has_one = admin,
+        constraint = pool_account.is_initialized == true,
+    )]
+    pub pool_account: Account<'info, PoolConfig>,
+}
+
+#[derive(Accounts)]
+pub struct ChangeRewardMint<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
+        has_one = admin,
+        constraint = pool_account.is_initialized == true,
+    )]
+    pub pool_account: Account<'info, PoolConfig>,
+}
+
+#[derive(Accounts)]
+pub struct TransferOwnership<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [RS_PREFIX.as_bytes()],
+        bump,
+        has_one = admin,
+        constraint = pool_account.is_initialized == true,
+    )]
+    pub pool_account: Account<'info, PoolConfig>,
+}
 // Access control modifiers
-fn user(stake_info_account: &Account<StakeInfo>, user: &AccountInfo) -> Result<()> {
+impl<'info> InitializeStakingPool<'info> {
+    pub fn validate(&self) -> Result<()> {
+        if self.pool_account.is_initialized == true {
+            require!(
+                self.pool_account.admin.eq(&self.admin.key()),
+                StakingError::NotAllowedAuthority
+            )
+        }
+        Ok(())
+    }
+}
+
+pub fn user(stake_info_account: &Account<StakeInfo>, user: &AccountInfo) -> Result<()> {
     require!(
         stake_info_account.owner == *user.key,
         StakingError::InvalidUserAddress

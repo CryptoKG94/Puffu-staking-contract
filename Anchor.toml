@@ -2,14 +2,14 @@
 rs_staking_program = "24HE7xAAaPKhmvFg71rdDQC4oXCq78j1tgrSJYNhkPP7"
 
 [programs.devnet]
-rs_staking_program = "24HE7xAAaPKhmvFg71rdDQC4oXCq78j1tgrSJYNhkPP7"
+rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
 
-cluster = "localnet"
+cluster = "devnet"
 #cluster = "http://127.0.0.1:8899"
 #wallet = "/home/gitpod/.config/solana/id.json"
 wallet = "/kg/solana/kg_keypair.json"

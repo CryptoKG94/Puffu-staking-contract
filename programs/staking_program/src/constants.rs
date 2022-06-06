@@ -1,5 +1,5 @@
 pub const CLASS_TYPES: usize = 9;
-pub const REWARD_DENOMIATOR: u64 = 100;
+pub const REWARD_DENOMIATOR: u64 = 10;
 
 pub const GLOBAL_AUTHORITY_SEED: &str = "global-authority";
 pub const RS_PREFIX: &str = "rs-nft-staking";
