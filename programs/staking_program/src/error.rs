@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum StakingError {
-    #[msg("Invalid User Pool")]
-    InvalidUserPool,
+    #[msg("Invalid User Address")]
+    InvalidUserAddress,
     #[msg("Invalid pool number")]
     InvalidPoolError,
     #[msg("No Matching NFT to withdraw")]
@@ -15,5 +15,5 @@ pub enum StakingError {
     #[msg("Withdraw NFT Index OverFlow")]
     IndexOverflow,
     #[msg("Insufficient Lamports")]
-    LackLamports
+    LackLamports,
 }

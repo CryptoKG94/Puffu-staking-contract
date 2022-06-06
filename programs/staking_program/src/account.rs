@@ -7,6 +7,7 @@ pub const POOL_CONFIG_SIZE: usize = 8 + // discriminator
     1 + // is_initialized
     32 + // authority
     1 + // paused
+    4 + // lock_day
     32 + // reward_mint
     32 + // reward_vault
     8 + // last_update_time
@@ -18,10 +19,12 @@ pub const POOL_CONFIG_SIZE: usize = 8 + // discriminator
 pub struct PoolConfig {
     // 1
     pub is_initialized: bool,
-    /// authority (owner) pubkey
-    pub authority: Pubkey,
+    /// admin pubkey
+    pub admin: Pubkey,
     /// Paused state of the program
     pub paused: bool,
+    /// nft lock period
+    pub lock_day: u32,
     /// Mint of the reward token.
     pub reward_mint: Pubkey,
     /// Vault to store reward tokens.
@@ -38,6 +41,25 @@ pub struct PoolConfig {
 #[derive(Default)]
 pub struct StakeInfo {
     pub class_id: u32,
+    pub owner: Pubkey,
+    pub nft_addr: Pubkey,
+    pub stake_time: i64,
+    pub last_update_time: i64,
+}
+
+impl StakeInfo {
+    pub fn update_reward(&mut self, now: i64) -> Result<u64> {
+        let mut reward: u64 = 0;
+        let mut last_reward_time = self.last_update_time;
+        if last_reward_time < self.stake_time {
+            last_reward_time = self.stake_time;
+        }
+        reward = (((now - last_reward_time) / DAY) as u64) * REWARD_PER_DAY;
+        self.last_update_time = now;
+
+        Ok(reward)
+        // return Ok(reward);
+    }
 }
 
 #[zero_copy]
