@@ -32,7 +32,7 @@ pub mod rs_staking_program {
         }
         pool_account.is_initialized = true;
         pool_account.admin = *ctx.accounts.admin.key;
-        pool_account.paused = true; // initial status is paused
+        pool_account.paused = false; // initial status is paused
         pool_account.reward_mint = *ctx.accounts.reward_mint.to_account_info().key;
         pool_account.reward_vault = ctx.accounts.reward_vault.key();
         pool_account.last_update_time = Clock::get()?.unix_timestamp;
@@ -67,12 +67,7 @@ pub mod rs_staking_program {
     }
 
     #[access_control(user(&ctx.accounts.nft_stake_info_account, &ctx.accounts.owner))]
-    pub fn withdraw_nft(
-        ctx: Context<WithdrawNft>,
-        global_bump: u8,
-        _stake_info_bump: u8,
-        _staked_nft_bump: u8,
-    ) -> Result<()> {
+    pub fn withdraw_nft(ctx: Context<WithdrawNft>) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
         let staking_info = &mut ctx.accounts.nft_stake_info_account;
 
@@ -97,7 +92,9 @@ pub mod rs_staking_program {
         ctx.accounts.pool_account.staked_nft -= 1;
 
         // get pool_account seed
-        let seeds = &[RS_PREFIX.as_bytes(), &[global_bump]];
+        let (_pool_account_seed, _pool_account_bump) =
+            Pubkey::find_program_address(&[&(RS_PREFIX.as_bytes())], ctx.program_id);
+        let seeds = &[RS_PREFIX.as_bytes(), &[_pool_account_bump]];
         let signer = &[&seeds[..]];
         let cpi_accounts = Transfer {
             from: ctx.accounts.staked_nft_token_account.to_account_info(),
@@ -226,7 +223,7 @@ pub struct InitializeStakingPool<'info> {
         init,
         token::mint = reward_mint,
         token::authority = pool_account,
-        seeds = [ RS_VAULT_SEED.as_bytes(), admin.key.as_ref(), reward_mint.key().as_ref() ],
+        seeds = [ RS_VAULT_SEED.as_bytes(), reward_mint.key().as_ref() ],
         bump,
         payer = admin,
     )]
@@ -280,13 +277,12 @@ pub struct StakeNft<'info> {
     pub nft_mint: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
+    // pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
-#[instruction(global_bump: u8, stake_info_bump: u8, staked_nft_bump: u8)]
 pub struct WithdrawNft<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -302,8 +298,8 @@ pub struct WithdrawNft<'info> {
 
     #[account(
         mut,
-        seeds = [RS_STAKEINFO_SEED.as_ref(), nft_mint.key.as_ref()],
-        bump = stake_info_bump,
+        seeds = [RS_STAKEINFO_SEED.as_ref(), nft_mint.key().as_ref()],
+        bump,
         close = owner,
     )]
     pub nft_stake_info_account: Account<'info, StakeInfo>,
@@ -316,8 +312,8 @@ pub struct WithdrawNft<'info> {
 
     #[account(
         mut,
-        seeds = [RS_STAKE_SEED.as_ref(), nft_mint.key.as_ref()],
-        bump = staked_nft_bump
+        seeds = [RS_STAKE_SEED.as_ref(), nft_mint.key().as_ref()],
+        bump
     )]
     pub staked_nft_token_account: Account<'info, TokenAccount>,
 
@@ -326,10 +322,9 @@ pub struct WithdrawNft<'info> {
     reward_to_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: "nft_mint" is unsafe, but is not documented.
-    pub nft_mint: AccountInfo<'info>,
+    pub nft_mint: Account<'info, Mint>,
 
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -378,9 +373,9 @@ pub struct ClaimReward<'info> {
 
 #[derive(Accounts)]
 pub struct DepositSwrd<'info> {
-    #[account(mut, signer)]
+    #[account(mut)]
     /// CHECK: this is unsafe.
-    funder: AccountInfo<'info>,
+    funder: Signer<'info>,
     #[account(mut)]
     reward_vault: Box<Account<'info, TokenAccount>>,
 

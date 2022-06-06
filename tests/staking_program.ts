@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import { RsStakingProgram as StakingProgram } from '../target/types/rs_staking_program';
+import { RsStakingProgram } from '../target/types/rs_staking_program';
 import { SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
@@ -22,7 +22,7 @@ describe('staking_program', () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.RsStakingProgram as Program<StakingProgram>;
+  const program = anchor.workspace.RsStakingProgram as Program<RsStakingProgram>;
   const superOwner = anchor.web3.Keypair.generate();
   const user = anchor.web3.Keypair.generate();
 
@@ -97,8 +97,8 @@ describe('staking_program', () => {
     let _funder_vault_account = await reward_mint.getAccountInfo(funder_vault_account);
     let _user_nft_token_account = await nft_token_mint.getAccountInfo(user_nft_token_account);
 
-    // assert.ok(_funder_vault_account.amount == initial_reward_vault_amount);
-    // assert.ok(_user_nft_token_account.amount.toNumber() == 1);
+    assert.ok(Number(_funder_vault_account.amount) == initial_reward_vault_amount);
+    assert.ok(Number(_user_nft_token_account.amount) == 1);
 
     // create PDAs
     const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
@@ -111,7 +111,6 @@ describe('staking_program', () => {
     const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
       [
         Buffer.from(RS_VAULT_SEED),
-        superOwner.publicKey.toBuffer(),
         reward_mint.publicKey.toBuffer(),
       ],
       program.programId
@@ -134,110 +133,119 @@ describe('staking_program', () => {
     console.log("Your transaction signature", res);
   });
 
-  // it("Stake Nft To Fixed", async () => {
+  it("deposit reward", async () => {
+    const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_VAULT_SEED),
+        reward_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   const [globalAuthority, bump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from(GLOBAL_AUTHORITY_SEED)],
-  //     program.programId
-  //   );
+    let deposit_amount = 100;
+    const ix = await program.methods.depositSwrd(
+      new anchor.BN(deposit_amount)
+    ).accounts({
+      funder: superOwner.publicKey,
+      rewardVault: vault_pda,
+      funderAccount: funder_vault_account,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([superOwner]).rpc();
 
-  //   console.log("globalAuthority =", globalAuthority.toBase58());
+    console.log()
 
-  //   let userFixedPoolKey = await PublicKey.createWithSeed(
-  //     user.publicKey,
-  //     "user-fixed-pool",
-  //     program.programId,
-  //   );
+    let _vault_account = await reward_mint.getAccountInfo(vault_pda);
+    assert.ok(Number(_vault_account.amount) == deposit_amount);
+    console.log("Your transaction signature", ix);
+  })
 
-  //   /*let destNftTokenAccount = await Token.getAssociatedTokenAddress(
-  //     ASSOCIATED_TOKEN_PROGRAM_ID, 
-  //     TOKEN_PROGRAM_ID,
-  //     nft_token_mint.publicKey,
-  //     user.publicKey
-  //   );*/
+  it("Stake Nft", async () => {
+    const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(RS_PREFIX)],
+      program.programId
+    );
 
-  //   const [staked_nft_address, nft_bump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from("staked-nft"), nft_token_mint.publicKey.toBuffer()],
-  //     program.programId
-  //   );
+    const [staked_nft_pda, staked_bump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_STAKE_SEED),
+        nft_token_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   //let destNftTokenAccount = await nft_token_mint.createAccount(user.publicKey);
+    const [stake_info_pda, stake_info_bump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_STAKEINFO_SEED),
+        nft_token_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   const tx = await program.rpc.stakeNftToFixed(
-  //     bump, nft_bump, {
-  //     accounts: {
-  //       owner: user.publicKey,
-  //       userFixedPool: userFixedPoolKey,
-  //       globalAuthority,
-  //       userNftTokenAccount: userTokenAccount,
-  //       destNftTokenAccount: staked_nft_address,
-  //       nftMint: nft_token_mint.publicKey,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //       rent: SYSVAR_RENT_PUBKEY
-  //     },
-  //     signers: [user]
-  //   }
-  //   );
+    const ix = await program.methods.stakeNft().accounts({
+      owner: user.publicKey,
+      poolAccount: pool_account_pda,
+      nftMint: nft_token_mint.publicKey,
+      userNftTokenAccount: user_nft_token_account,
+      destNftTokenAccount: staked_nft_pda,
+      nftStakeInfoAccount: stake_info_pda,
+      rent: SYSVAR_RENT_PUBKEY,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+      .signers([user])
+      .rpc();
+    console.log("Your transaction signature", ix);
 
-  //   console.log("Your transaction signature", tx);
+  })
 
-  //   let userFixedPool = await program.account.userPool.fetch(userFixedPoolKey);
-  //   //console.log("userFixedPool =", userFixedPool);
-  // })
+  it("Withdraw Nft", async () => {
+    const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(RS_PREFIX)],
+      program.programId
+    );
 
-  // it("Withdraw Nft From Fixed", async () => {
+    const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_VAULT_SEED),
+        reward_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   const [globalAuthority, bump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from(GLOBAL_AUTHORITY_SEED)],
-  //     program.programId
-  //   );
+    const [staked_nft_pda, staked_bump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_STAKE_SEED),
+        nft_token_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   console.log("globalAuthority =", globalAuthority.toBase58());
+    const [stake_info_pda, stake_info_bump] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(RS_STAKEINFO_SEED),
+        nft_token_mint.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
-  //   const [poolWalletKey, walletBump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from(POOL_WALLET_SEED)],
-  //     program.programId
-  //   );
+    const ix = await program.methods.withdrawNft().accounts({
+      owner: user.publicKey,
+      poolAccount: pool_account_pda,
+      nftMint: nft_token_mint.publicKey,
+      userNftTokenAccount: user_nft_token_account,
+      stakedNftTokenAccount: staked_nft_pda,
+      nftStakeInfoAccount: stake_info_pda,
+      rewardToAccount: user_reward_account,
+      rewardVault: vault_pda,
+      rent: SYSVAR_RENT_PUBKEY,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+      .signers([user])
+      .rpc();
+    console.log("Your transaction signature", ix);
 
-  //   console.log("poolWalletKey =", poolWalletKey.toBase58());
-
-  //   let userFixedPoolKey = await PublicKey.createWithSeed(
-  //     user.publicKey,
-  //     "user-fixed-pool",
-  //     program.programId,
-  //   );
-
-  //   const [staked_nft_address, nft_bump] = await PublicKey.findProgramAddress(
-  //     [Buffer.from("staked-nft"), nft_token_mint.publicKey.toBuffer()],
-  //     program.programId
-  //   );
-
-  //   const tx = await program.rpc.withdrawNftFromFixed(
-  //     bump, nft_bump, walletBump, {
-  //     accounts: {
-  //       owner: user.publicKey,
-  //       userFixedPool: userFixedPoolKey,
-  //       globalAuthority,
-  //       poolWallet: poolWalletKey,
-  //       userNftTokenAccount: userTokenAccount,
-  //       stakedNftTokenAccount: staked_nft_address,
-  //       nftMint: nft_token_mint.publicKey,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //       rent: SYSVAR_RENT_PUBKEY
-  //     },
-  //     signers: [user]
-  //   }
-  //   );
-
-  //   console.log("Your transaction signature", tx);
-
-  //   let userFixedPool = await program.account.userPool.fetch(userFixedPoolKey);
-  //   //console.log("userFixedPool =", userFixedPool);
-  // })
+  })
 
   // it("Claim Reward", async () => {
 
