@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, Token, TokenAccount, Transfer},
+    token::{self, Mint, Token, TokenAccount, Transfer},
 };
 use std::mem::size_of;
 
@@ -204,9 +204,9 @@ pub mod rs_staking_program {
 #[derive(Accounts)]
 pub struct InitializeStakingPool<'info> {
     // The pool owner
-    #[account(mut, signer)]
+    #[account(mut)]
     /// CHECK: "admin" is unsafe.
-    admin: AccountInfo<'info>,
+    pub admin: Signer<'info>,
 
     #[account(
         init,
@@ -219,28 +219,28 @@ pub struct InitializeStakingPool<'info> {
 
     // reward mint
     /// CHECK: this is unsafe.
-    reward_mint: AccountInfo<'info>,
+    pub reward_mint: Account<'info, Mint>,
 
     // reward vault that holds the reward mint for distribution
     #[account(
         init,
         token::mint = reward_mint,
         token::authority = pool_account,
-        seeds = [ RS_VAULT_SEED.as_bytes(), admin.key.as_ref(), reward_mint.key.as_ref() ],
+        seeds = [ RS_VAULT_SEED.as_bytes(), admin.key.as_ref(), reward_mint.key().as_ref() ],
         bump,
         payer = admin,
     )]
     pub reward_vault: Box<Account<'info, TokenAccount>>,
 
     // The rent sysvar
-    rent: Sysvar<'info, Rent>,
+    pub rent: Sysvar<'info, Rent>,
     // system program
     /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 
     // token program
     /// CHECK: This is not dangerous because we don't read or write from this account
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]

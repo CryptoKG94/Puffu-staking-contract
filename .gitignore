@@ -6,3 +6,4 @@ node_modules
 Cargo.lock
 package-lock.json
 test-ledger
+kg_keypair.json
