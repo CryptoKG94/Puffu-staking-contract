@@ -99,7 +99,7 @@ const updateSwardMint = async () => {
 
 const updateConfig = async () => {
     let class_type = Constants.CLASS_TYPES;
-    let lock_day = 0;
+    let lock_day = 20;
     let paused = false;
 
     const txHash = await program.methods.changePoolSetting(
@@ -137,7 +137,7 @@ const transferOwnership = async () => {
 
 const depositSWRD = async () => {
     const txHash = await program.methods.depositSwrd(
-        new anchor.BN(50_000_000_000)
+        new anchor.BN(10_000_000_000_000_000)
     ).accounts(
         {
             funder: admin.publicKey,

@@ -71,16 +71,7 @@ pub mod rs_staking_program {
     pub fn withdraw_nft(ctx: Context<WithdrawNft>) -> Result<()> {
         let timestamp = Clock::get()?.unix_timestamp;
         let staking_info = &mut ctx.accounts.nft_stake_info_account;
-
         let pool_account = &mut ctx.accounts.pool_account;
-        let reward_per_day = pool_account.reward_policy_by_class[staking_info.class_id as usize];
-        // When withdraw nft, calculate and send reward SWRD
-        let mut reward: u64 = staking_info.update_reward(timestamp, reward_per_day)?;
-
-        let vault_balance = ctx.accounts.reward_vault.amount;
-        if vault_balance < reward {
-            reward = vault_balance;
-        }
 
         let unlock_time = staking_info
             .stake_time
@@ -91,8 +82,15 @@ pub mod rs_staking_program {
             )
             .unwrap();
 
-        if unlock_time > timestamp {
-            return Err(StakingError::InvalidWithdrawTime.into());
+        require!((unlock_time < timestamp), StakingError::NotAllowedAuthority);
+
+        let reward_per_day = pool_account.reward_policy_by_class[staking_info.class_id as usize];
+        // When withdraw nft, calculate and send reward SWRD
+        let mut reward: u64 = staking_info.update_reward(timestamp, reward_per_day)?;
+
+        let vault_balance = ctx.accounts.reward_vault.amount;
+        if vault_balance < reward {
+            reward = vault_balance;
         }
 
         ctx.accounts.pool_account.staked_nft -= 1;
@@ -299,7 +297,7 @@ pub struct StakeNft<'info> {
     pub user_nft_token_account: Account<'info, TokenAccount>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = owner,
         seeds = [RS_STAKE_SEED.as_ref(), nft_mint.key.as_ref()],
         bump,
@@ -367,7 +365,6 @@ pub struct WithdrawNft<'info> {
         mut,
         seeds = [RS_STAKE_SEED.as_ref(), nft_mint.key().as_ref()],
         bump,
-        close = owner,
     )]
     pub staked_nft_token_account: Account<'info, TokenAccount>,
 
