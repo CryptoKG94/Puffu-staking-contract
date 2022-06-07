@@ -1,5 +1,5 @@
 [programs.localnet]
-rs_staking_program = "24HE7xAAaPKhmvFg71rdDQC4oXCq78j1tgrSJYNhkPP7"
+rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"
 
 [programs.devnet]
 rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"

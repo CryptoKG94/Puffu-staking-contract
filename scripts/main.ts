@@ -8,6 +8,7 @@ import {
   TransactionInstruction,
   sendAndConfirmTransaction,
   Connection,
+  clusterApiUrl,
   Commitment
 } from "@solana/web3.js";
 
@@ -22,7 +23,6 @@ import {
 } from "@solana/spl-token";
 
 // let bs58 = require("bs58");
-import BN from "bn.js";
 import {
   Data,
   updateMetadata,
@@ -30,15 +30,17 @@ import {
   createMetadata,
   createMasterEdition,
   getMetadata,
-} from "./metadata";
+} from "./helpers/metadata";
+
+const BN = anchor.BN;
 
 export const mintNewNFT = async (
   creator: Keypair,
-  owner: Keypair, 
+  owner: Keypair,
   index: Number
 ): Promise<Array<PublicKey>> => {
   const commitment: Commitment = 'processed';
-  const network = "https://api.devnet.solana.com/"; // "http://127.0.0.1:8899",
+  const network = "https://api.devnet.solana.com/"; // clusterApiUrl("mainnet-beta");
   const connection = new Connection(
     network,
     {
@@ -113,33 +115,33 @@ export const mintNewNFT = async (
     transaction,
     [creator]
   );
-//   console.log("nft creation done tx : ", txHash);
-//   console.log("newMintKey : ", newMintKey.toBase58());
-//   console.log("nftAccount : ", nftAccount.toBase58());
+  //   console.log("nft creation done tx : ", txHash);
+  //   console.log("newMintKey : ", newMintKey.toBase58());
+  //   console.log("nftAccount : ", nftAccount.toBase58());
   return [nftAccount, newMintKey];
 };
 
 async function main() {
-    const MY_WALLET = "/root/.config/solana/id.json";
-    const myWallet = anchor.web3.Keypair.fromSecretKey(
-        new Uint8Array(
-        JSON.parse(require("fs").readFileSync(MY_WALLET, "utf8"))
-        )
-    );
+  const MY_WALLET = "/root/.config/solana/id.json";
+  const myWallet = anchor.web3.Keypair.fromSecretKey(
+    new Uint8Array(
+      JSON.parse(require("fs").readFileSync(MY_WALLET, "utf8"))
+    )
+  );
 
-    // console.log("PK : ", myWallet.secretKey.toString());
-    let error_count = 0;
-    for (let i = 18; i < 100; i ++) {
-        try {
-            await mintNewNFT(myWallet, myWallet, i);
-            console.log('current minted: =========> ', i);
-        } catch(e) {
-            console.log(e);
-            error_count ++;
-            break;
-            // continue;
-        }
+  // console.log("PK : ", myWallet.secretKey.toString());
+  let error_count = 0;
+  for (let i = 18; i < 100; i++) {
+    try {
+      await mintNewNFT(myWallet, myWallet, i);
+      console.log('current minted: =========> ', i);
+    } catch (e) {
+      console.log(e);
+      error_count++;
+      break;
+      // continue;
     }
+  }
 }
 
 main();

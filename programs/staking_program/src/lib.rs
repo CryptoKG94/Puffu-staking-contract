@@ -199,7 +199,7 @@ pub mod rs_staking_program {
 
             let token_accounts = anchor_spl::token::Transfer {
                 from: ctx.accounts.reward_vault.to_account_info().clone(),
-                to: ctx.accounts.funder_account.to_account_info().clone(),
+                to: ctx.accounts.reward_to_account.to_account_info().clone(),
                 authority: ctx.accounts.pool_account.to_account_info().clone(),
             };
             let cpi_ctx =
@@ -371,12 +371,18 @@ pub struct WithdrawNft<'info> {
     pub staked_nft_token_account: Account<'info, TokenAccount>,
 
     // send reward to user reward vault
-    #[account(mut)]
+    #[account(
+      init_if_needed,
+      payer = owner,
+      associated_token::mint = reward_mint,
+      associated_token::authority = owner
+    )]
     reward_to_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: "nft_mint" is unsafe, but is not documented.
     pub nft_mint: Account<'info, Mint>,
 
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -414,14 +420,21 @@ pub struct ClaimReward<'info> {
     pub reward_mint: Account<'info, Mint>,
 
     // send reward to user reward vault
-    #[account(mut)]
+    #[account(
+      init_if_needed,
+      payer = owner,
+      associated_token::mint = reward_mint,
+      associated_token::authority = owner
+    )]
     reward_to_account: Box<Account<'info, TokenAccount>>,
 
     pub nft_mint: Account<'info, Mint>,
 
     // The Token Program
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -476,16 +489,24 @@ pub struct WithdrawSwrd<'info> {
     )]
     pub reward_vault: Box<Account<'info, TokenAccount>>,
 
-    // funder account
-    #[account(mut)]
-    pub funder_account: Account<'info, TokenAccount>,
+    // send reward to user reward vault
+    #[account(
+      init_if_needed,
+      payer = admin,
+      associated_token::mint = reward_mint,
+      associated_token::authority = admin
+    )]
+    reward_to_account: Box<Account<'info, TokenAccount>>,
 
     // reward mint
     #[account(address = pool_account.reward_mint)]
     reward_mint: Account<'info, Mint>,
 
     // The Token Program
-    token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]

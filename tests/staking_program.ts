@@ -5,6 +5,7 @@ import { SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
 import bs58 from 'bs58';
+import { ASSOCIATED_PROGRAM_ID } from '@project-serum/anchor/dist/cjs/utils/token';
 
 const PublicKey = anchor.web3.PublicKey;
 
@@ -94,8 +95,34 @@ describe('staking_program', () => {
       TOKEN_PROGRAM_ID
     );
 
-    user_reward_account = await reward_mint.createAccount(user.publicKey);
-    funder_vault_account = await reward_mint.createAccount(superOwner.publicKey);
+    // user_reward_account = await reward_mint.createAccount(user.publicKey);
+    // funder_vault_account = await reward_mint.createAccount(superOwner.publicKey);
+
+    // associate test
+    user_reward_account = await reward_mint.createAssociatedTokenAccount(user.publicKey);
+    funder_vault_account = await reward_mint.createAssociatedTokenAccount(superOwner.publicKey);
+
+    user_reward_account = (await PublicKey.findProgramAddress(
+      [
+        user.publicKey.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
+        reward_mint.publicKey.toBuffer(), // mint address
+      ],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    ))[0];
+
+    funder_vault_account = (await PublicKey.findProgramAddress(
+      [
+        superOwner.publicKey.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
+        reward_mint.publicKey.toBuffer(), // mint address
+      ],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    ))[0];
+    // console.log("funder_vault_account_ass = ", funder_vault_account_ass);
+    console.log("funder_vault_account = ", funder_vault_account);
+    // console.log("associatedTokenAccountPubkey = ", associatedTokenAccountPubkey);
+    // test end
 
     await reward_mint.mintTo(
       funder_vault_account,
@@ -268,6 +295,8 @@ describe('staking_program', () => {
       nftStakeInfoAccount: stake_info_pda,
       rewardToAccount: user_reward_account,
       rewardVault: vault_pda,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
@@ -353,9 +382,12 @@ describe('staking_program', () => {
       admin: superOwner.publicKey,
       poolAccount: pool_account_pda,
       rewardVault: vault_pda,
-      funderAccount: funder_vault_account,
+      rewardToAccount: funder_vault_account,
       rewardMint: reward_mint.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: SYSVAR_RENT_PUBKEY,
     }).signers([superOwner]).rpc();
 
     let _vault_account = await reward_mint.getAccountInfo(vault_pda);
