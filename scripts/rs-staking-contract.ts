@@ -176,7 +176,7 @@ const getSWRDAccount = async () => {
 }
 
 const stakeNFT = async () => {
-    const mintPK = new PublicKey("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
+    const mintPK = new PublicKey("5z695impWXPEtBuDvMnqy7yh45yvRtqEsE164NVFPqc7");
     const txHash = await program.methods.stakeNft(2)
         .accounts(
             {
@@ -195,7 +195,7 @@ const stakeNFT = async () => {
 }
 
 const claimReward = async () => {
-    const mintPK = new PublicKey("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
+    const mintPK = new PublicKey("5z695impWXPEtBuDvMnqy7yh45yvRtqEsE164NVFPqc7");
     const reward_to_account = await getAssociatedTokenAccount(admin.publicKey, Constants.SWRD_TOKEN_MINT);
     console.log("reward_to_account: ", reward_to_account.toBase58());
     const txHash = await program.methods.claimReward()
@@ -218,7 +218,7 @@ const claimReward = async () => {
 }
 
 const withdrawNFT = async () => {
-    const mintPK = new PublicKey("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
+    const mintPK = new PublicKey("5z695impWXPEtBuDvMnqy7yh45yvRtqEsE164NVFPqc7");//("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
     const reward_to_account = await getAssociatedTokenAccount(admin.publicKey, Constants.SWRD_TOKEN_MINT);
     // const nft_to_account = await getNFTTokenAccount(mintPK);
     const nft_to_account = await getTokenAccount(mintPK, admin.publicKey);
