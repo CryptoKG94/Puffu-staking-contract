@@ -137,7 +137,7 @@ const transferOwnership = async () => {
 
 const depositSWRD = async () => {
     const txHash = await program.methods.depositSwrd(
-        new anchor.BN(900_000_000_000)
+        new anchor.BN(50_000_000_000)
     ).accounts(
         {
             funder: admin.publicKey,
