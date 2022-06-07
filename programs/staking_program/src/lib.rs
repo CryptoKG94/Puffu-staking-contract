@@ -359,14 +359,15 @@ pub struct WithdrawNft<'info> {
 
     #[account(
         mut,
-        constraint = user_nft_token_account.owner == owner.key()
+        // constraint = user_nft_token_account.owner == owner.key()
     )]
     pub user_nft_token_account: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         seeds = [RS_STAKE_SEED.as_ref(), nft_mint.key().as_ref()],
-        bump
+        bump,
+        close = owner,
     )]
     pub staked_nft_token_account: Account<'info, TokenAccount>,
 

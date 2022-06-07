@@ -99,7 +99,7 @@ const updateSwardMint = async () => {
 
 const updateConfig = async () => {
     let class_type = Constants.CLASS_TYPES;
-    let lock_day = 20;
+    let lock_day = 0;
     let paused = false;
 
     const txHash = await program.methods.changePoolSetting(
@@ -176,7 +176,7 @@ const getSWRDAccount = async () => {
 }
 
 const stakeNFT = async () => {
-    const mintPK = new PublicKey("AEo2TrsLEEwkznmoBaACZR3SBNncjx9oJpUqDp3HZ4hn");
+    const mintPK = new PublicKey("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
     const txHash = await program.methods.stakeNft(2)
         .accounts(
             {
@@ -191,31 +191,57 @@ const stakeNFT = async () => {
                 tokenProgram: TOKEN_PROGRAM_ID,
             }
         ).rpc();
+    console.log('txHash =', txHash);
 }
 
 const claimReward = async () => {
-
+    const mintPK = new PublicKey("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
+    const reward_to_account = await getAssociatedTokenAccount(admin.publicKey, Constants.SWRD_TOKEN_MINT);
+    console.log("reward_to_account: ", reward_to_account.toBase58());
+    const txHash = await program.methods.claimReward()
+        .accounts(
+            {
+                owner: admin.publicKey,
+                poolAccount: await Keys.getPoolKey(),
+                nftStakeInfoAccount: await Keys.getStakeInfoKey(mintPK),
+                rewardMint: Constants.SWRD_TOKEN_MINT,
+                rewardVault: await Keys.getRewardVaultKey(Constants.SWRD_TOKEN_MINT),
+                rewardToAccount: reward_to_account,
+                rent: SYSVAR_RENT_PUBKEY,
+                systemProgram: SystemProgram.programId,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                nftMint: mintPK,
+            }
+        ).rpc();
+    console.log('txHash =', txHash);
 }
 
 const withdrawNFT = async () => {
-    const mintPK = new PublicKey("AEo2TrsLEEwkznmoBaACZR3SBNncjx9oJpUqDp3HZ4hn");
+    const mintPK = new PublicKey("DdpEZxxfAj5tXUDCu8fdw6vs2vrmnx6KR7LdChTgr3Jz");
+    const reward_to_account = await getAssociatedTokenAccount(admin.publicKey, Constants.SWRD_TOKEN_MINT);
+    // const nft_to_account = await getNFTTokenAccount(mintPK);
+    const nft_to_account = await getTokenAccount(mintPK, admin.publicKey);
+    console.log("reward_to_account: ", reward_to_account.toBase58());
+    console.log("nft_to_account: ", nft_to_account.toBase58());
     const txHash = await program.methods.withdrawNft()
         .accounts(
             {
                 owner: admin.publicKey,
                 poolAccount: await Keys.getPoolKey(),
                 nftMint: mintPK,
-                userNftTokenAccount: await getNFTTokenAccount(mintPK),
+                userNftTokenAccount: nft_to_account,
                 stakedNftTokenAccount: await Keys.getStakedNFTKey(mintPK),
                 nftStakeInfoAccount: await Keys.getStakeInfoKey(mintPK),
                 rewardMint: Constants.SWRD_TOKEN_MINT,
                 rewardVault: await Keys.getRewardVaultKey(Constants.SWRD_TOKEN_MINT),
-                rewardToAccount: getAssociatedTokenAccount(admin.publicKey, Constants.SWRD_TOKEN_MINT),
+                rewardToAccount: reward_to_account,
                 rent: SYSVAR_RENT_PUBKEY,
                 systemProgram: SystemProgram.programId,
                 tokenProgram: TOKEN_PROGRAM_ID,
             }
         ).rpc();
+    console.log('txHash =', txHash);
 }
 
 const getStakeInfos = async () => {
@@ -288,6 +314,12 @@ const main = () => {
         updateConfig();
     } else if (command == "TransferOwnerShip") {
         transferOwnership();
+    } else if (command == "Stake") {
+        stakeNFT();
+    } else if (command == "Withdraw") {
+        withdrawNFT();
+    } else if (command == "Claim") {
+        claimReward();
     } else {
         console.log("Please enter command name...");
         getSWRDAccount();

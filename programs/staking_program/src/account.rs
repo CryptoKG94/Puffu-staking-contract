@@ -54,7 +54,7 @@ impl StakeInfo {
             last_reward_time = self.stake_time;
         }
 
-        let unit_amount = (10 as u16).pow(DECIMAL);
+        let unit_amount = (10 as u64).pow(DECIMAL);
         reward = (unit_amount as u128)
             .checked_mul((now as u128).checked_sub(last_reward_time as u128).unwrap())
             .unwrap()
