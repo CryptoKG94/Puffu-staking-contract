@@ -137,7 +137,7 @@ const transferOwnership = async () => {
 
 const depositSWRD = async () => {
     const txHash = await program.methods.depositSwrd(
-        new anchor.BN(10_000_000_000_000_000)
+        new anchor.BN(5_000_000_000_000_000)
     ).accounts(
         {
             funder: admin.publicKey,
@@ -246,17 +246,17 @@ const withdrawNFT = async () => {
 
 const getStakeInfos = async () => {
     const res = await program.account.stakeInfo.all(
-        [
-            {
-                memcmp: {
-                    offset: 12,
-                    bytes: "333"
-                }
-            }
-        ]
+        // [
+        //     {
+        //         memcmp: {
+        //             offset: 12,
+        //             bytes: admin.publicKey.toBase58()
+        //         }
+        //     }
+        // ]
     );
     // const res = await program.account.stakeInfo.all();
-    console.log("staked infos: ", res);
+    console.log("staked infos : ", res.length);
 }
 
 // utils
@@ -322,8 +322,8 @@ const main = () => {
         claimReward();
     } else {
         console.log("Please enter command name...");
-        getSWRDAccount();
-        // getStakeInfos();
+        // getSWRDAccount();
+        getStakeInfos();
     }
 }
 
