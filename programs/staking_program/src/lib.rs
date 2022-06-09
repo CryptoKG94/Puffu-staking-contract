@@ -82,7 +82,7 @@ pub mod rs_staking_program {
             )
             .unwrap();
 
-        require!((unlock_time < timestamp), StakingError::NotAllowedAuthority);
+        require!((unlock_time < timestamp), StakingError::InvalidWithdrawTime);
 
         let reward_per_day = pool_account.reward_policy_by_class[staking_info.class_id as usize];
         // When withdraw nft, calculate and send reward SWRD
