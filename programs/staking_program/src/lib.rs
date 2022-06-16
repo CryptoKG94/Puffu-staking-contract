@@ -11,7 +11,7 @@ use instructions::*;
 declare_id!("6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo");
 
 #[program]
-pub mod rs_staking_program {
+pub mod puffu_staking_program {
     use super::*;
 
     pub fn initialize_staking_pool(

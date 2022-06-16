@@ -84,13 +84,10 @@ pub fn withdraw_nft(ctx: Context<WithdrawNft>) -> Result<()> {
     let staking_info = &mut ctx.accounts.nft_stake_info_account;
     let pool_account = &mut ctx.accounts.pool_account;
 
+    let lock_day = pool_account.lock_day_by_class[staking_info.class_id as usize];
     let unlock_time = staking_info
         .stake_time
-        .checked_add(
-            (pool_account.lock_day as i64)
-                .checked_mul(86400 as i64)
-                .unwrap(),
-        )
+        .checked_add((lock_day as i64).checked_mul(86400 as i64).unwrap())
         .unwrap();
 
     require!((unlock_time < timestamp), StakingError::InvalidWithdrawTime);
@@ -111,14 +108,14 @@ pub fn withdraw_nft(ctx: Context<WithdrawNft>) -> Result<()> {
         Pubkey::find_program_address(&[&(RS_PREFIX.as_bytes())], ctx.program_id);
     let seeds = &[RS_PREFIX.as_bytes(), &[_pool_account_bump]];
     let signer = &[&seeds[..]];
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.staked_nft_token_account.to_account_info(),
-        to: ctx.accounts.user_nft_token_account.to_account_info(),
-        authority: ctx.accounts.pool_account.to_account_info(),
-    };
-    let token_program = ctx.accounts.token_program.to_account_info().clone();
-    let transfer_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer);
-    token::transfer(transfer_ctx, 1)?;
+    // let cpi_accounts = Transfer {
+    //     from: ctx.accounts.staked_nft_token_account.to_account_info(),
+    //     to: ctx.accounts.user_nft_token_account.to_account_info(),
+    //     authority: ctx.accounts.pool_account.to_account_info(),
+    // };
+    // let token_program = ctx.accounts.token_program.to_account_info().clone();
+    // let transfer_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer);
+    // token::transfer(transfer_ctx, 1)?;
 
     if reward > 0 {
         let token_accounts = anchor_spl::token::Transfer {

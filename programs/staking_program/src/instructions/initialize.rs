@@ -61,7 +61,7 @@ impl<'info> InitializeStakingPool<'info> {
 pub fn initialize_staking_pool(
     ctx: Context<InitializeStakingPool>,
     reward_policy_by_class: [u16; CLASS_TYPES],
-    lock_day: u32,
+    lock_day_by_class: [u16; CLASS_TYPES],
 ) -> Result<()> {
     msg!("initializing");
 
@@ -74,7 +74,8 @@ pub fn initialize_staking_pool(
     pool_account.reward_vault = ctx.accounts.reward_vault.key();
     pool_account.last_update_time = Clock::get()?.unix_timestamp;
     pool_account.staked_nft = 0;
-    pool_account.lock_day = lock_day;
+    pool_account.lock_day = 0;
+    pool_account.lock_day_by_class = lock_day_by_class;
     pool_account.reward_policy_by_class = reward_policy_by_class;
     Ok(())
 }

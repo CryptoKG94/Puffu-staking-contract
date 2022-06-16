@@ -1,4 +1,4 @@
-pub const CLASS_TYPES: usize = 9;
+pub const CLASS_TYPES: usize = 3;
 pub const REWARD_DENOMIATOR: u64 = 10;
 
 pub const GLOBAL_AUTHORITY_SEED: &str = "global-authority";

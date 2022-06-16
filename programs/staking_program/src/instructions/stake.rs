@@ -63,14 +63,14 @@ pub fn stake_nft(ctx: Context<StakeNft>, class_id: u32) -> Result<()> {
     // set global info
     ctx.accounts.pool_account.staked_nft += 1;
 
-    // transfer nft to pda
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.user_nft_token_account.to_account_info(),
-        to: ctx.accounts.dest_nft_token_account.to_account_info(),
-        authority: ctx.accounts.owner.to_account_info(),
-    };
-    let token_program = ctx.accounts.token_program.to_account_info();
-    let transfer_ctx = CpiContext::new(token_program, cpi_accounts);
-    token::transfer(transfer_ctx, 1)?;
+    // transfer nft to pda (don't need to transfer in this project)
+    // let cpi_accounts = Transfer {
+    //     from: ctx.accounts.user_nft_token_account.to_account_info(),
+    //     to: ctx.accounts.dest_nft_token_account.to_account_info(),
+    //     authority: ctx.accounts.owner.to_account_info(),
+    // };
+    // let token_program = ctx.accounts.token_program.to_account_info();
+    // let transfer_ctx = CpiContext::new(token_program, cpi_accounts);
+    // token::transfer(transfer_ctx, 1)?;
     Ok(())
 }

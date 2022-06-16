@@ -22,4 +22,6 @@ pub struct PoolConfig {
     pub staked_nft: u32,
     /// Reward amount per day according to class type
     pub reward_policy_by_class: [u16; CLASS_TYPES],
+    /// lock day according to type
+    pub lock_day_by_class: [u16; CLASS_TYPES],
 }

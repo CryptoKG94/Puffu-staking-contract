@@ -99,7 +99,7 @@ const updateSwardMint = async () => {
 
 const updateConfig = async () => {
     let class_type = Constants.CLASS_TYPES;
-    let lock_day = 20;
+    let lock_day = 0;
     let paused = false;
 
     const txHash = await program.methods.changePoolSetting(
