@@ -14,7 +14,7 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, Token } from "@solana/spl-token";
 import bs58 from 'bs58';
-import { IDL } from "../target/types/rs_staking_program";
+import { IDL } from "../target/types/puffu_staking_program";
 import * as Constants from "./constants";
 import * as Keys from "./keys";
 import NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
@@ -60,25 +60,25 @@ const getTokenAccount = async (mintPk, userPk) => {
 }
 
 const init = async () => {
-    const txHash = await program.methods.initializeStakingPool(
-        Constants.CLASS_TYPES,
-        Constants.LOCK_DAY
-    ).accounts(
-        {
-            admin: provider.wallet.publicKey,
-            poolAccount: await Keys.getPoolKey(),
-            rewardMint: Constants.SWRD_TOKEN_MINT,
-            rewardVault: await Keys.getRewardVaultKey(Constants.SWRD_TOKEN_MINT),
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY
-        }
-    ).rpc();
+    // const txHash = await program.methods.initializeStakingPool(
+    //     Constants.CLASS_TYPES,
+    //     Constants.LOCK_DAY,
+    // ).accounts(
+    //     {
+    //         admin: provider.wallet.publicKey,
+    //         poolAccount: await Keys.getPoolKey(),
+    //         rewardMint: Constants.SWRD_TOKEN_MINT,
+    //         rewardVault: await Keys.getRewardVaultKey(Constants.SWRD_TOKEN_MINT),
+    //         tokenProgram: TOKEN_PROGRAM_ID,
+    //         systemProgram: SystemProgram.programId,
+    //         rent: SYSVAR_RENT_PUBKEY
+    //     }
+    // ).rpc();
 
     let _pool_config = await program.account.poolConfig.fetch(await Keys.getPoolKey());
     console.log("Admin of contract = ", _pool_config.admin.toBase58());
     console.log("second class id: ", _pool_config.rewardPolicyByClass[1]);
-    console.log('txHash =', txHash);
+    // console.log('txHash =', txHash);
 }
 
 const updateSwardMint = async () => {
@@ -137,7 +137,7 @@ const transferOwnership = async () => {
 
 const depositSWRD = async () => {
     const txHash = await program.methods.depositSwrd(
-        new anchor.BN(5_000_000_000_000_000)
+        new anchor.BN(100_000_000_000)
     ).accounts(
         {
             funder: admin.publicKey,

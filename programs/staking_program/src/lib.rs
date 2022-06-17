@@ -8,7 +8,7 @@ pub mod states;
 use constants::*;
 use instructions::*;
 
-declare_id!("6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo");
+declare_id!("7RdikeoWp1fzYyw6k1tpoULgZEQ33tFnRE3Nf111NBuu");
 
 #[program]
 pub mod puffu_staking_program {
@@ -17,9 +17,9 @@ pub mod puffu_staking_program {
     pub fn initialize_staking_pool(
         ctx: Context<InitializeStakingPool>,
         reward_policy_by_class: [u16; CLASS_TYPES],
-        lock_day: u32,
+        lock_day_by_class: [u16; CLASS_TYPES],
     ) -> Result<()> {
-        initialize::initialize_staking_pool(ctx, reward_policy_by_class, lock_day)
+        initialize::initialize_staking_pool(ctx, reward_policy_by_class, lock_day_by_class)
     }
 
     pub fn stake_nft(ctx: Context<StakeNft>, class_id: u32) -> Result<()> {

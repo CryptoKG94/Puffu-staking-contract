@@ -24,8 +24,6 @@ impl StakeInfo {
             .unwrap()
             .checked_mul(reward_per_day as u128)
             .unwrap()
-            .checked_div(REWARD_DENOMIATOR as u128)
-            .unwrap()
             .checked_div(DAY as u128)
             .unwrap() as u64;
         // reward = (((now - last_reward_time) / DAY) as u64) * reward_per_day;

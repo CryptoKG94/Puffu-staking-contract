@@ -2,7 +2,7 @@
 rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"
 
 [programs.devnet]
-rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"
+rs_staking_program = "7RdikeoWp1fzYyw6k1tpoULgZEQ33tFnRE3Nf111NBuu"
 
 [programs.mainnet]
 rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"
@@ -11,11 +11,11 @@ rs_staking_program = "6RhXNaW1oQYQmjTc1ypb4bEFe1QasPAgEfFNhQ3HnSqo"
 url = "https://anchor.projectserum.com"
 
 [provider]
-
-cluster = "mainnet"
+cluster = "devnet"
 #cluster = "http://127.0.0.1:8899"
 #wallet = "/home/gitpod/.config/solana/id.json"
-wallet = "/kg/solana/work_keypair.json"
+#wallet = "/kg/solana/work_keypair.json"
+wallet = "/kg/solana/kg_keypair.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
