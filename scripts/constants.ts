@@ -6,8 +6,8 @@ export const RS_STAKEINFO_SEED = "puffu-stake-info";
 export const RS_STAKE_SEED = "puffu-nft-staking";
 export const RS_VAULT_SEED = "puffu-vault";
 
-export const CLASS_TYPES = [10, 20, 50]; // [65, 50, 43, 35, 27, 14, 9, 7, 4];
-export const LOCK_DAY = [0, 10, 23]; // 0 => 10, 10 => 10, 23 => 50
+export const CLASS_TYPES = [10, 15, 25]; // [65, 50, 43, 35, 27, 14, 9, 7, 4];
+export const LOCK_DAY = [0, 14, 30]; // 0 => 10, 10 => 10, 23 => 50
 
 export const NETWORK = "devnet";
 // devnet

@@ -25,10 +25,10 @@ let connection = new Connection(networkUrl, "singleGossip");
 // let connection = new Connection("https://api.devnet.solana.com", "singleGossip");
 
 // GTVhUEjJ2wpVAQuctQHqnL1FF5cciYreQ1qrw6mw8QXh
-// const admin = anchor.web3.Keypair.fromSecretKey(bs58.decode("2FA5E9hrffdkZjYUfdhV5baUtL13bJjXcUosVyFYdbeqk62K2Efgc4Wj9AHMs4HmKAKwiYfm7gQrBXmBwgLcXL6T"));
+const admin = anchor.web3.Keypair.fromSecretKey(bs58.decode("2FA5E9hrffdkZjYUfdhV5baUtL13bJjXcUosVyFYdbeqk62K2Efgc4Wj9AHMs4HmKAKwiYfm7gQrBXmBwgLcXL6T"));
 
 // 7etbqNa25YWWQztHrwuyXtG39WnAqPszrGRZmEBPvFup
-const admin = anchor.web3.Keypair.fromSecretKey(bs58.decode("4veSd6NyYiZUBcypTWUDojfHEjz5Da348zpcPDY4wuKZamMom24aSNtsNd5aQ9LzTXXpAKvQMnZhi9vXyMbFwxpe"));
+// const admin = anchor.web3.Keypair.fromSecretKey(bs58.decode("4veSd6NyYiZUBcypTWUDojfHEjz5Da348zpcPDY4wuKZamMom24aSNtsNd5aQ9LzTXXpAKvQMnZhi9vXyMbFwxpe"));
 
 let provider = new anchor.AnchorProvider(connection, new NodeWallet(admin), anchor.AnchorProvider.defaultOptions())
 const program = new anchor.Program(IDL, Constants.PROGRAM_ID, provider);
@@ -99,7 +99,7 @@ const updateSwardMint = async () => {
 
 const updateConfig = async () => {
     let class_type = Constants.CLASS_TYPES;
-    let lock_day = 0;
+    let lock_day = Constants.LOCK_DAY;
     let paused = false;
 
     const txHash = await program.methods.changePoolSetting(
@@ -113,10 +113,11 @@ const updateConfig = async () => {
         }
     ).rpc();
 
-    let _pool_config = await program.account.poolConfig.fetch(await Keys.getPoolKey());
-    console.log("updated_lock_day = ", _pool_config.lockDay);
-    console.log("paused = ", _pool_config.paused);
     console.log('txHash =', txHash);
+
+    let _pool_config = await program.account.poolConfig.fetch(await Keys.getPoolKey());
+    console.log("updated_lock_day = ", _pool_config.lockDayByClass);
+    console.log("paused = ", _pool_config.paused);
 }
 
 const transferOwnership = async () => {

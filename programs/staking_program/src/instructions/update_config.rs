@@ -18,13 +18,13 @@ pub struct ChangePoolSetting<'info> {
 pub fn handle(
     ctx: Context<ChangePoolSetting>,
     reward_policy_by_class: [u16; CLASS_TYPES],
-    lock_day: u32,
+    lock_day_by_class: [u16; CLASS_TYPES],
     paused: bool,
 ) -> Result<()> {
     let pool_account = &mut ctx.accounts.pool_account;
     pool_account.paused = paused; // initial status is paused
     pool_account.last_update_time = Clock::get()?.unix_timestamp;
-    pool_account.lock_day = lock_day;
+    pool_account.lock_day_by_class = lock_day_by_class;
     pool_account.reward_policy_by_class = reward_policy_by_class;
     Ok(())
 }

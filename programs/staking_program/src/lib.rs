@@ -46,10 +46,10 @@ pub mod puffu_staking_program {
     pub fn change_pool_setting(
         ctx: Context<ChangePoolSetting>,
         reward_policy_by_class: [u16; CLASS_TYPES],
-        lock_day: u32,
+        lock_day_by_class: [u16; CLASS_TYPES],
         paused: bool,
     ) -> Result<()> {
-        update_config::handle(ctx, reward_policy_by_class, lock_day, paused)
+        update_config::handle(ctx, reward_policy_by_class, lock_day_by_class, paused)
     }
 
     pub fn change_reward_mint(ctx: Context<ChangeRewardMint>, reward_mint: Pubkey) -> Result<()> {
