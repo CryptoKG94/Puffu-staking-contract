@@ -1,6 +1,6 @@
 use crate::{constants::*, states::*};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Token, TokenAccount, Transfer, Mint};
 
 use std::mem::size_of;
 
@@ -40,8 +40,7 @@ pub struct StakeNft<'info> {
     )]
     pub nft_stake_info_account: Account<'info, StakeInfo>,
 
-    /// CHECK: unsafe
-    pub nft_mint: AccountInfo<'info>,
+    pub nft_mint: Account<'info, Mint>,
 
     pub token_program: Program<'info, Token>,
     // pub associated_token_program: Program<'info, AssociatedToken>,
