@@ -10,7 +10,6 @@ Please check your wallet path again.
 ### Deploy command
 ```
 yarn install
-yarn build
 anchor build
 anchor deploy
 ```

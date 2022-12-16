@@ -51,7 +51,7 @@ describe('staking_program', () => {
   ];
   let lock_day = 0;
 
-  it('is initialized!', async () => {
+  it('Is initialized!', async () => {
     // Add your test here.
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(superOwner.publicKey, 9000000000),
@@ -180,7 +180,7 @@ describe('staking_program', () => {
     console.log("Your transaction signature", res);
   });
 
-  it("deposits reward", async () => {
+  it("deposit reward", async () => {
     // create PDAs
     const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
       [Buffer.from(RS_PREFIX)],
@@ -214,7 +214,7 @@ describe('staking_program', () => {
     console.log("Your transaction signature", ix);
   })
 
-  it("stakes Nft", async () => {
+  it("Stake Nft", async () => {
     const [pool_account_pda, bump] = await PublicKey.findProgramAddress(
       [Buffer.from(RS_PREFIX)],
       program.programId
@@ -364,7 +364,7 @@ describe('staking_program', () => {
 
   })
 
-  it("withdraws reward", async () => {
+  it("withdraw reward", async () => {
     const [vault_pda, walletBump] = await PublicKey.findProgramAddress(
       [
         Buffer.from(RS_VAULT_SEED),
