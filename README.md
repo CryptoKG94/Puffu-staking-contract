@@ -1,4 +1,4 @@
-# Puffu-staking-contract
+# Puffu staking-contract
 Standard Program for nft staking on Solana
 
 ## Overview
